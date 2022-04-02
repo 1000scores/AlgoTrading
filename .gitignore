@@ -1,5 +1,7 @@
-api_secrets
+secrets
 data
 tmp_data
 __pycache__
 catboost_info
+saved_models
+scalers

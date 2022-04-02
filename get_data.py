@@ -11,6 +11,7 @@ ohlcv_size_dict = {
     '1m': Account.KLINE_INTERVAL_1MINUTE,
     '15m': Account.KLINE_INTERVAL_15MINUTE,
     '1h': Account.KLINE_INTERVAL_1HOUR,
+    '12h': Account.KLINE_INTERVAL_12HOUR,
     '1d': Account.KLINE_INTERVAL_1DAY,
 }
 
@@ -41,18 +42,6 @@ def download_data(
     with open(path, 'w') as filehandle:
         json.dump(data, filehandle)
     # Get account information
-
-
-def get_exogenous_from_file(path):
-    tmp = None
-    with open(path, 'r') as f:
-        tmp = [list(map(float, elem)) for elem in json.load(f)]
-    
-    ans = []
-    for elem in tmp:
-        ans.append([elem[1], elem[3], elem[4], elem[5], elem[8]])
-    
-    return np.array(ans)
     
 
 def get_high_from_data(path):
