@@ -6,6 +6,8 @@ from tqdm import tqdm
 from account import Account
 from common import date_to_milli
 import numpy as np
+import pandas as pd
+
 
 ohlcv_size_dict = {
     '1m': Account.KLINE_INTERVAL_1MINUTE,
@@ -14,6 +16,30 @@ ohlcv_size_dict = {
     '12h': Account.KLINE_INTERVAL_12HOUR,
     '1d': Account.KLINE_INTERVAL_1DAY,
 }
+
+
+def download_data_df(
+    start_date: int,  # "2021-11-01"
+    end_date,  # "2022-01-28"
+    currency_symbol: str,  # "BTCUSDT"
+    ohlcv_size: str  #  1m / 15m / 1h / 1d
+):  
+    
+    account = Account()
+
+    ohlcv_generator = account.get_historical_klines_generator(
+        currency_symbol,
+        ohlcv_size_dict[ohlcv_size],
+        str(start_date),
+        end_date if end_date is None else str(end_date)
+    )
+    data = []
+    #              0          1       2      3       4        5           6                7                   8               9               10               11
+    columns = ['opentime', 'open', 'high', 'low', 'close', 'volume', 'closetime', 'quote_asset_volume', 'num_of_trades', 'taker_by_base', 'taker_buy_quote', 'ignore']
+    for elem in tqdm(ohlcv_generator):
+        data.append(elem)
+    
+    return pd.DataFrame(data, columns=columns)
 
 def download_data(
     start_date: str,  # "2021-11-01"

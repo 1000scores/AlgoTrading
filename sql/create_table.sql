@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS trade_table (
+CREATE TABLE IF NOT EXISTS TICKER_TABLE_NAME (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
     `opentime` TIMESTAMP null,
     `open` DOUBLE,
@@ -14,4 +14,4 @@ CREATE TABLE IF NOT EXISTS trade_table (
     `ignore` VARCHAR(10)
 );
 
-ALTER TABLE `trade_table` ADD UNIQUE INDEX(`opentime`);
+ALTER TABLE TICKER_TABLE_NAME ADD UNIQUE INDEX(`opentime`);

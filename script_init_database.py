@@ -1,4 +1,4 @@
-from mysql.connector import connect, Error
+from sqlalchemy import create_engine
 import json
 
 if __name__ == "__main__":
@@ -8,24 +8,16 @@ if __name__ == "__main__":
     with open(config_path, "rb") as f:
         config = json.load(f)
 
-    try:
-        with connect(
-            host=config['host'],
-            port=config["port"],
-            user=config['user'],
-            password=config['password'],
-            database=config['database']
-        ) as connection:
-            print(connection)
+    engine = create_engine(f'mysql://{config["user"]}:{config["password"]}@{config["host"]}:{config["port"]}/{config["database"]}')
+    with engine.connect() as connection:
+        print(connection)
+        for ticker in config["tickers"]:
             create_db_query = None
             with open("sql/create_table.sql", 'r') as f:
                 create_db_query = f.read()
-
+            
+            create_db_query = create_db_query.replace("TICKER_TABLE_NAME", ticker)
+            
             print(create_db_query)
 
-            with connection.cursor() as cursor:
-                cursor.execute(create_db_query)
-
-
-    except Error as e:
-        print(e)
+            connection.execute(create_db_query)

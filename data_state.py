@@ -44,10 +44,6 @@ class State:
                     ohlcv_size="1m"
                 )
         
-
-
-
-
     def __download_data(
         self,
         start_date: str,  # "2021-11-01"
