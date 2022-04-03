@@ -1,3 +1,3 @@
 SELECT 
-    MAX(opentime) as opentime
+    MAX(closetime) as closetime
 FROM TICKER;

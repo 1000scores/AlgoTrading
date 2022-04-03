@@ -18,13 +18,13 @@ def get_min_opentime(connection, ticker):
 
 
 def get_max_closetime(connection, ticker):
-    get_man_data_db_query = None
+    get_max_data_db_query = None
     with open("sql/get_max_closetime.sql", 'r') as f:
-        get_man_data_db_query = f.read()
+        get_max_data_db_query = f.read()
     
-    get_man_data_db_query = get_man_data_db_query.replace("TICKER", ticker)
+    get_max_data_db_query = get_max_data_db_query.replace("TICKER", ticker)
 
-    return int(pd.read_sql_query(get_man_data_db_query, connection).iloc[0, 0])
+    return int(pd.read_sql_query(get_max_data_db_query, connection).iloc[0, 0])
 
 
 def update_data(connection, last_closetime, ticker):
@@ -34,7 +34,7 @@ def update_data(connection, last_closetime, ticker):
         ticker,
         "1m"
     )
-    print(result_df)
+    
     result_df.to_sql(ticker, connection, if_exists="append")
     
 

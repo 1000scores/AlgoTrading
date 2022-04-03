@@ -30,8 +30,8 @@ def download_data_df(
     ohlcv_generator = account.get_historical_klines_generator(
         currency_symbol,
         ohlcv_size_dict[ohlcv_size],
-        str(start_date),
-        end_date if end_date is None else str(end_date)
+        start_date,
+        end_date
     )
     data = []
     #              0          1       2      3       4        5           6                7                   8               9               10               11
