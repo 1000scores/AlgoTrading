@@ -32,7 +32,7 @@ def update_data(connection, last_closetime, ticker):
         last_closetime,
         None,
         ticker,
-        "15m"
+        "1m"
     )
 
     result_df.to_sql(ticker, connection, if_exists="append")
