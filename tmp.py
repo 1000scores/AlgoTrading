@@ -1,3 +1,3 @@
-from data_state import *
+from common import *
 
-state = State()
+print(date_to_milli("2022-04-03"))
