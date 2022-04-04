@@ -17,4 +17,3 @@ def test_regressor(
         currency_symbol,
         ohlcv_size
     )
-

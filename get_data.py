@@ -29,19 +29,25 @@ ohlcv_to_minutes = {
 
 
 def download_data_df(
-    start_date: int,  # "2021-11-01"
-    end_date,  # "2022-01-28"
+    start_date,  # milli or "2021-11-01"
+    end_date,  # None or milli or "2022-01-28"
     currency_symbol: str,  # "BTCUSDT"
     ohlcv_size: str  #  1m / 15m / 1h / 1d
 ):  
     
     account = Account()
 
+    if type(start_date) == str:
+        start_date = date_to_milli(start_date)
+
+    if end_date is not None and type(end_date) == str:
+        end_date = date_to_milli(end_date) - 1
+
     ohlcv_generator = account.get_historical_klines_generator(
         currency_symbol,
         ohlcv_kline_size_dict[ohlcv_size],
-        date_to_milli(start_date),
-        end_date if end_date is None else date_to_milli(end_date) - 1
+        start_date,
+        end_date
     )
     data = []
     #              0          1       2      3       4        5           6                7                   8               9               10               11
