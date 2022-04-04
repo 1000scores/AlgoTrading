@@ -4,17 +4,27 @@ from datetime import datetime
 import json
 from tqdm import tqdm
 from account import Account
-from common import date_to_milli
+from common import date_to_milli, get_connection_and_tickers_to_database
 import numpy as np
 import pandas as pd
+from pprint import pprint
 
 
-ohlcv_size_dict = {
+ohlcv_kline_size_dict = {
     '1m': Account.KLINE_INTERVAL_1MINUTE,
     '15m': Account.KLINE_INTERVAL_15MINUTE,
     '1h': Account.KLINE_INTERVAL_1HOUR,
     '12h': Account.KLINE_INTERVAL_12HOUR,
     '1d': Account.KLINE_INTERVAL_1DAY,
+}
+
+
+ohlcv_to_minutes = {
+    '1m': 1,
+    '15m': 15,
+    '1h': 60,
+    '12h': 720,
+    '1d': 1440,
 }
 
 
@@ -29,9 +39,9 @@ def download_data_df(
 
     ohlcv_generator = account.get_historical_klines_generator(
         currency_symbol,
-        ohlcv_size_dict[ohlcv_size],
-        start_date,
-        end_date
+        ohlcv_kline_size_dict[ohlcv_size],
+        date_to_milli(start_date),
+        end_date if end_date is None else date_to_milli(end_date) - 1
     )
     data = []
     #              0          1       2      3       4        5           6                7                   8               9               10               11
@@ -41,40 +51,83 @@ def download_data_df(
     
     return pd.DataFrame(data, columns=columns)
 
-def download_data(
-    start_date: str,  # "2021-11-01"
-    end_date,  # "2022-01-28"
-    currency_symbol: str,  # "BTCUSDT"
-    path: str,  # 'ohlcv1minute/test_2021-11-01_2022-01-28.txt'
-    ohlcv_size: str  #  1m / 15m / 1h / 1d
-):  
+
+def get_data(
+    start_date: str,
+    end_date: str,
+    currency_symbol: str,
+    ohlcv_size: str  # num of minutes in OHLCV
+):
+    get_interval_data_db_query = None
+    with open("sql/get_date_interval.sql", 'r') as f:
+        get_interval_data_db_query = f.read()
     
-    account = Account()
 
-    ohlcv_generator = account.get_historical_klines_generator(
-        currency_symbol,
-        ohlcv_size_dict[ohlcv_size],
-        date_to_milli(start_date),
-        end_date if end_date is None else date_to_milli(end_date)
-    )
-    data = []
-    #              0          1       2      3       4        5           6                7                   8               9               10               11
-    columns = ['opentime', 'open', 'high', 'low', 'close', 'volume', 'closetime', 'quote_asset_volume', 'num_of_trades', 'taker_by_base', 'taker_buy_quote', 'ignore']
-    for elem in tqdm(ohlcv_generator):
-        data.append(elem)
-    print(len(data))
+    get_interval_data_db_query = get_interval_data_db_query.replace("TICKER", currency_symbol)
+    get_interval_data_db_query = get_interval_data_db_query.replace("START_MILLI", str(date_to_milli(start_date)))
+    get_interval_data_db_query = get_interval_data_db_query.replace("END_MILLI", str(date_to_milli(end_date)))
 
+    connection, _ = get_connection_and_tickers_to_database()
+
+    ohlcv_minutes = int(ohlcv_to_minutes[ohlcv_size])
+
+    df_input = pd.read_sql_query(get_interval_data_db_query, connection)
+    need_size = int((len(df_input) / ohlcv_minutes) * ohlcv_minutes)
+    df_input = df_input.iloc[:need_size]
+    df_input = df_input.drop('index', axis=1)
+    df_input = df_input.astype({
+        'opentime': 'int64',
+        'open': 'float',
+        'high': 'float',
+        'low': 'float',
+        'close': 'float',
+        'volume': 'float',
+        'closetime': 'int64',
+        'quote_asset_volume': 'float',
+        'num_of_trades': 'int64',
+        'taker_by_base': 'float',
+        'taker_buy_quote': 'float',
+        'ignore': 'int64'
+    })
+
+    print(df_input.info())
+    df_res = pd.DataFrame([], columns=df_input.columns)
+
+    for i in range(0, len(df_input), ohlcv_minutes):
+        cur_ohlcv_df = df_input.iloc[i : i + ohlcv_minutes]
         
-    with open(path, 'w') as filehandle:
-        json.dump(data, filehandle)
-    # Get account information
+        cur_res_df = pd.DataFrame({
+            'opentime': cur_ohlcv_df['opentime'].min(),
+            'open': cur_ohlcv_df['open'].iloc[0],
+            'high': cur_ohlcv_df['high'].max(),
+            'low': cur_ohlcv_df['low'].min(),
+            'close': cur_ohlcv_df['close'].iloc[len(cur_ohlcv_df['close']) - 1],
+            'volume': cur_ohlcv_df['volume'].sum(),
+            'closetime': cur_ohlcv_df['closetime'].max(),
+            'quote_asset_volume': cur_ohlcv_df['quote_asset_volume'].sum(),
+            'num_of_trades': cur_ohlcv_df['num_of_trades'].sum(),
+            'taker_by_base': cur_ohlcv_df['taker_by_base'].sum(),
+            'taker_buy_quote': cur_ohlcv_df['taker_buy_quote'].sum(),
+            'ignore': cur_ohlcv_df['ignore'].min()  # =))
+        }, index=[i // ohlcv_minutes])
+
+        df_res = df_res.append(cur_res_df)
     
+    return df_res
+
 
 def get_high_from_data(path):
     with open(path, 'r') as f:
         return np.array([float(elem[2]) for elem in json.load(f)])
     
+
 def get_low_from_data(path):
     with open(path, 'r') as f:
         return np.array([float(elem[3]) for elem in json.load(f)])
 
+if __name__ == "__main__":
+    df_mine = get_data("2022-03-03", "2022-03-04", "ETHUSDT", "1h")
+    df_true = download_data_df("2022-03-03", "2022-03-04", "ETHUSDT", "1h")
+    pprint(df_mine)
+    print()
+    pprint(df_true)
