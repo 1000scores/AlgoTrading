@@ -18,4 +18,3 @@ def test_regressor(
         ohlcv_size
     )
 
-
