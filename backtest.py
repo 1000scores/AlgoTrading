@@ -6,7 +6,7 @@ def test_regressor(
     end_date: str,
     currency_symbol: str,
     ohlcv_size: str,
-    
+    regressor_lag: int,  # num of ohlcv us input to regressor
     wrapped_f_regressor,  # (input) -> output
     *args,
     **kwargs
