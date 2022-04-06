@@ -1,3 +1,4 @@
+from locale import currency
 from binance import Client, ThreadedWebsocketManager, ThreadedDepthCacheManager
 from pprint import pprint
 from datetime import datetime
@@ -8,6 +9,7 @@ from common import date_to_milli, get_connection_and_tickers_to_database
 import numpy as np
 import pandas as pd
 from pprint import pprint
+import os
 
 
 ohlcv_kline_size_dict = {
@@ -58,12 +60,33 @@ def download_data_df(
     return pd.DataFrame(data, columns=columns)
 
 
+def check_for_cache(
+    start_date,
+    end_date,
+    currency_symbol,
+    ohlcv_size
+):
+    fname = f"train_data_cache/{currency_symbol}_{ohlcv_size}_{start_date}_{end_date}.csv"
+    if os.path.isfile(fname):
+        return pd.read_csv(fname)
+    
+    return None
+
 def get_data(
     start_date: str,
     end_date: str,
     currency_symbol: str,
     ohlcv_size: str  # num of minutes in OHLCV
 ):
+    cache = check_for_cache(
+        start_date,
+        end_date,
+        currency_symbol,
+        ohlcv_size
+    )
+    if cache is not None:
+        return cache
+        
     get_interval_data_db_query = None
     with open("sql/get_date_interval.sql", 'r') as f:
         get_interval_data_db_query = f.read()
@@ -96,10 +119,10 @@ def get_data(
         'ignore': 'int64'
     })
 
-    print(df_input.info())
     df_res = pd.DataFrame([], columns=df_input.columns)
 
-    for i in range(0, len(df_input), ohlcv_minutes):
+    print("Preparing data from database")
+    for i in tqdm(range(0, len(df_input), ohlcv_minutes)):
         cur_ohlcv_df = df_input.iloc[i : i + ohlcv_minutes]
         
         cur_res_df = pd.DataFrame({
@@ -118,7 +141,9 @@ def get_data(
         }, index=[i // ohlcv_minutes])
 
         df_res = df_res.append(cur_res_df)
-    
+        
+    fname = f"train_data_cache/{currency_symbol}_{ohlcv_size}_{start_date}_{end_date}.csv"
+    df_res.to_csv(fname)
     return df_res
 
 
@@ -132,6 +157,7 @@ def get_low_from_data(path):
         return np.array([float(elem[3]) for elem in json.load(f)])
 
 if __name__ == "__main__":
+    print("here")
     df_mine = get_data("2022-03-03", "2022-03-04", "ETHUSDT", "1h")
     df_true = download_data_df("2022-03-03", "2022-03-04", "ETHUSDT", "1h")
     pprint(df_mine)
