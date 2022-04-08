@@ -5,29 +5,11 @@ from datetime import datetime
 import json
 from tqdm import tqdm
 from account import Account
-from common import date_to_milli, get_connection_and_tickers_to_database
+from common import *
 import numpy as np
 import pandas as pd
 from pprint import pprint
 import os
-
-
-ohlcv_kline_size_dict = {
-    '1m': Account.KLINE_INTERVAL_1MINUTE,
-    '15m': Account.KLINE_INTERVAL_15MINUTE,
-    '1h': Account.KLINE_INTERVAL_1HOUR,
-    '12h': Account.KLINE_INTERVAL_12HOUR,
-    '1d': Account.KLINE_INTERVAL_1DAY,
-}
-
-
-ohlcv_to_minutes = {
-    '1m': 1,
-    '15m': 15,
-    '1h': 60,
-    '12h': 720,
-    '1d': 1440,
-}
 
 
 def download_data_df(
@@ -47,7 +29,7 @@ def download_data_df(
 
     ohlcv_generator = account.get_historical_klines_generator(
         currency_symbol,
-        ohlcv_kline_size_dict[ohlcv_size],
+        get_ohlcv_kline_size_dict()[ohlcv_size],
         start_date,
         end_date
     )
@@ -66,6 +48,10 @@ def check_for_cache(
     currency_symbol,
     ohlcv_size
 ):
+    
+    if not os.path.isdir(f"train_data_cache"):
+        os.mkdir(f"train_data_cache")
+    
     fname = f"train_data_cache/{currency_symbol}_{ohlcv_size}_{start_date}_{end_date}.csv"
     if os.path.isfile(fname):
         return pd.read_csv(fname)
@@ -98,7 +84,7 @@ def get_data(
 
     connection, _ = get_connection_and_tickers_to_database()
 
-    ohlcv_minutes = int(ohlcv_to_minutes[ohlcv_size])
+    ohlcv_minutes = int(get_ohlcv_to_minutes()[ohlcv_size])
 
     df_input = pd.read_sql_query(get_interval_data_db_query, connection)
     need_size = int((len(df_input) / ohlcv_minutes) * ohlcv_minutes)
@@ -144,7 +130,7 @@ def get_data(
         
     fname = f"train_data_cache/{currency_symbol}_{ohlcv_size}_{start_date}_{end_date}.csv"
     df_res.to_csv(fname)
-    return df_res
+    return pd.read_csv(fname)
 
 
 def get_high_from_data(path):

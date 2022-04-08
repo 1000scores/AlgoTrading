@@ -11,22 +11,24 @@ import torch.nn as nn
 from dataset import *
 import matplotlib.pyplot as plt
 import os
+from scaler import transform, inverse_transform
 
 
 class RegressorClass(torch.nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, dropout_rate=0.1):
+    def __init__(self, input_size, hidden_size, num_layers, dropout_rate, device):
         super(RegressorClass, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+        self.device = device
         self.lstm1 = nn.LSTM(input_size=input_size, hidden_size=hidden_size, dropout=dropout_rate, num_layers=num_layers, batch_first=True)
 
         self.l1 = nn.Linear(hidden_size, 1)
 
     def forward(self, inputs):
         batch_size = inputs.shape[0]
-        h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).requires_grad_()
-        c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).requires_grad_()
+        h0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).requires_grad_().to(self.device)
+        c0 = torch.zeros(self.num_layers, batch_size, self.hidden_size).requires_grad_().to(self.device)
         output, (h_out, _) = self.lstm1(inputs, (h0, c0))
 
         #print(f"forward1 {h_out.shape}")
@@ -54,7 +56,8 @@ class LSTM_regressor:
         hidden_size: int,
         dropout_rate: float,
         epochs: int,
-        model_name: str
+        model_name: str,
+        device
     ):
         self.seq_len = seq_len
         self.batch_size = batch_size
@@ -62,6 +65,9 @@ class LSTM_regressor:
         self.dropout_rate = dropout_rate
         self.epochs = epochs
         self.model_name = model_name
+        self.currency_symbol = currency_symbol
+        self.ohlcv_size = ohlcv_size
+        self.device = device
 
         self.train_dataloaders = {}
         self.test_dataloaders = {}
@@ -84,7 +90,7 @@ class LSTM_regressor:
                 seq_len=self.seq_len,
                 column=col
             )
-
+            
             self.train_dataloaders[col] = DataLoader(
                 tmp_train_dataset,
                 batch_size=self.batch_size,
@@ -101,12 +107,42 @@ class LSTM_regressor:
             self.train(col)
 
     def get_model_path(self, col):
-        return f"saved_models/{col}/{self.model_name}.pth"
+        return f"saved_models/{self.currency_symbol}/{self.ohlcv_size}/{col}/{self.model_name}.pth"
+    
+    def save_trained_model(self, model, col):
+        if not os.path.isdir(f"saved_models"):
+            os.mkdir(f"saved_models")
+            
+        if not os.path.isdir(f"saved_models/{self.currency_symbol}"):
+            os.mkdir(f"saved_models/{self.currency_symbol}")
+        
+        if not os.path.isdir(f"saved_models/{self.currency_symbol}/{self.ohlcv_size}"):
+            os.mkdir(f"saved_models/{self.currency_symbol}/{self.ohlcv_size}")
+            
+        if not os.path.isdir(f"saved_models/{self.currency_symbol}/{self.ohlcv_size}/{col}"):
+            os.mkdir(f"saved_models/{self.currency_symbol}/{self.ohlcv_size}/{col}")
+        
+        print(f"Saving model to {self.get_model_path(col)}")
+        torch.save(model, self.get_model_path(col))
+        
+        
+    def plot_loss(self, loss_log, col):
+        if not os.path.isdir(f"lstm_loss_graphs/{self.currency_symbol}"):
+            os.mkdir(f"lstm_loss_graphs/{self.currency_symbol}")
+        
+        if not os.path.isdir(f"lstm_loss_graphs/{self.currency_symbol}/{self.ohlcv_size}"):
+            os.mkdir(f"lstm_loss_graphs/{self.currency_symbol}/{self.ohlcv_size}")
+            
+        if not os.path.isdir(f"lstm_loss_graphs/{self.currency_symbol}/{self.ohlcv_size}/{col}"):
+            os.mkdir(f"lstm_loss_graphs/{self.currency_symbol}/{self.ohlcv_size}/{col}")
+        plt.plot(list(range(len(loss_log))), loss_log)
+        plt.savefig(f"lstm_loss_graphs/{self.currency_symbol}/{self.ohlcv_size}/{col}/{self.model_name}.png")
+    
 
     def train(
         self,
         col,
-        log_loss_every=200
+        log_loss_every=500,
     ):
 
         model = RegressorClass(
@@ -114,10 +150,11 @@ class LSTM_regressor:
             hidden_size=self.hidden_size,
             num_layers=1,
             dropout_rate=self.dropout_rate,
+            device=self.device
         )
         
+        model = model.to(self.device)
         
-
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
         criterion = nn.MSELoss()
         running_loss = 0.0
@@ -127,6 +164,8 @@ class LSTM_regressor:
             for i, data in enumerate(self.train_dataloaders[col]):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
+                inputs = inputs.to(device)
+                labels = labels.to(device)
                 outputs = model(inputs)
             
                 loss = criterion(outputs, labels)
@@ -144,14 +183,9 @@ class LSTM_regressor:
 
         print('Finished Training')
         
-        plt.plot(list(range(len(loss_log))), loss_log)
-        plt.show()
+        self.plot_loss(loss_log, col)
 
-        if not os.path.isdir(f"saved_models/{col}"):
-            os.mkdir(f"saved_models/{col}")
-        
-        print(f"Saving model to {self.get_model_path(col)}")
-        torch.save(model.state_dict(), self.get_model_path(col))
+        self.save_trained_model(model, col)
 
     
     def test(self, model, col):
@@ -166,6 +200,8 @@ class LSTM_regressor:
             for i, data in enumerate(self.test_dataloaders[col]):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
+                inputs = inputs.to(device)
+                labels = labels.to(device)
                 outputs = model(inputs)
                 total_loss += criterion(outputs, labels).item()
         
@@ -174,22 +210,42 @@ class LSTM_regressor:
         
         return avg_loss
 
+
+class TrainedLSTMRegressor:
+    def __init__(self, model_name, currency_symbol, ohlcv_size, columns, device): 
+        self.models = {}
+        self.currency_symbol = currency_symbol
+        self.device = device
+        for col in columns:
+            self.models[col] = torch.load(f"saved_models/{currency_symbol}/{ohlcv_size}/{col}/{model_name}.pth")
+            self.models[col].eval()
+        
+    def predict(self, inputs, column, opentime=None):
+        with torch.no_grad():
+            cur_model = self.models[column]
+            cur_inputs = torch.Tensor(transform(np.array(inputs[column]).reshape((-1, 1)), self.currency_symbol)).to(self.device)
+            cur_inputs = cur_inputs.reshape((1, -1, 1))
+            return inverse_transform(cur_model(cur_inputs).cpu().reshape(-1, 1), self.currency_symbol)
+
+
+
 if __name__ == '__main__':
-    print("here")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     reg = LSTM_regressor (
         train_start_date="2020-01-01",
-        train_end_date="2021-05-01",
-        test_start_date="2021-06-01",
+        train_end_date="2021-10-01",
+        test_start_date="2021-10-02",
         test_end_date="2022-04-01",
         currency_symbol="BTCUSDT",
         ohlcv_size="15m",
-        seq_len=20,
+        seq_len=50,
         columns=["low", "high"],
         batch_size=16,
-        hidden_size=3,
+        hidden_size=15,
         dropout_rate=0,
-        epochs=10,
-        model_name="v1"
+        epochs=70,
+        model_name="v2",
+        device=device
     )
 
     

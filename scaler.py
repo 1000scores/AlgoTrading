@@ -32,8 +32,15 @@ def transform(data, currency_symbol):
     
     scaler = load(open(scaler_path, 'rb'))
     
-    
     return scaler.transform(data)# * 1000
+
+
+def inverse_transform(data, currency_symbol):
+    scaler_path = f'scalers/scaler_{currency_symbol}.pkl'
+    
+    scaler = load(open(scaler_path, 'rb'))
+    
+    return scaler.inverse_transform(data)# * 1000
     
     
 if __name__ == "__main__":
