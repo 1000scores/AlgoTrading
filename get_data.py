@@ -104,6 +104,7 @@ def get_data(
         'taker_buy_quote': 'float',
         'ignore': 'int64'
     })
+    df_input = df_input.drop_duplcates(subset="opentime")
 
     df_res = pd.DataFrame([], columns=df_input.columns)
 

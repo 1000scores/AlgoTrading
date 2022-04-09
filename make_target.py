@@ -55,9 +55,11 @@ def make_target(
                         regressor_train_size=1000,
                         version="baseline_seqlen_20"
                     )
-                    
+                    '''print("===============================")
+                    print(cur_ohlcv_size)
+                    print("===============================")'''
                     df_helper = get_data(
-                        "2019-01-01",
+                        "2021-03-01",
                         "2022-04-07",
                         ticker,
                         cur_ohlcv_size
