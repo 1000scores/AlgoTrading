@@ -5,5 +5,4 @@ __pycache__
 catboost_info
 saved_models
 scalers
-train_data_cache
 target

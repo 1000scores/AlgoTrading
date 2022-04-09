@@ -45,15 +45,31 @@ if __name__ == "__main__":
     
     ohlcv_to_train_size = {
         "1h" : 1000,
-        "12h": 600,
-        "1d": 360   
+        "12h": 1000,
+        "1d": 720
     }
+    
+    ohlcv_to_dates = {
+        "1h": {
+            "start_date": "2020-11-01",
+            "end_date": "2022-04-08"
+        },
+        "12h": {
+            "start_date": "2019-01-01",
+            "end_date": "2022-04-08"
+        },
+        "1d": {
+            "start_date": "2019-01-01",
+            "end_date": "2022-04-08"
+        },
+    }
+    
     for currency_symbol in tqdm(currency_symbols):
         for ohlcv_size in tqdm(ohlcv_sizes):
             print(f"Filling {currency_symbol} size {ohlcv_size}")
             fill(
-                start_date=start_date,
-                end_date=end_date,
+                start_date=ohlcv_to_dates[ohlcv_size]["start_date"],
+                end_date=ohlcv_to_dates[ohlcv_size]["end_date"],
                 currency_symbol=currency_symbol,
                 ohlcv_size=ohlcv_size,
                 regressor_train_size=ohlcv_to_train_size[ohlcv_size]

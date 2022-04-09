@@ -104,7 +104,32 @@ def get_data(
         'taker_buy_quote': 'float',
         'ignore': 'int64'
     })
-    df_input = df_input.drop_duplcates(subset="opentime")
+    df_input = df_input.drop_duplicates(subset="opentime")
+    df_input = df_input.sort_values(by=["opentime"])
+    print(df_input)
+    print("============================")
+    minute_in_milli = 60000
+    first_opentime = int(df_input.iloc[0]["opentime"])
+    last_opentime = int(df_input.iloc[-1]["opentime"])
+    lines_for_append = []
+    last_line = None
+    for cur_opentime in tqdm(range(first_opentime, last_opentime + minute_in_milli, minute_in_milli)):
+        cur_row = df_input[df_input.opentime == cur_opentime]
+        if len(cur_row) == 0:
+            tmp = last_line.copy()
+            tmp["opentime"] = cur_opentime
+            lines_for_append.append(tmp)
+        else:
+            last_line = cur_row
+    
+    print(lines_for_append)
+    
+    for line in lines_for_append:
+        df_input = df_input.append(line, ignore_index=True)
+    
+    df_input = df_input.sort_values(by=["opentime"]).reset_index(drop=True)
+    print(df_input)
+
 
     df_res = pd.DataFrame([], columns=df_input.columns)
 
@@ -145,8 +170,8 @@ def get_low_from_data(path):
 
 if __name__ == "__main__":
     print("here")
-    df_mine = get_data("2022-03-03", "2022-03-04", "ETHUSDT", "1h")
-    df_true = download_data_df("2022-03-03", "2022-03-04", "ETHUSDT", "1h")
-    pprint(df_mine)
-    print()
-    pprint(df_true)
+    df_mine = get_data("2019-01-01", "2022-04-08", "BTCUSDT", "1h")
+    #df_true = download_data_df("2022-03-03", "2022-03-04", "ETHUSDT", "1h")
+    #pprint(df_mine)
+    #print()
+    #pprint(df_true)

@@ -64,7 +64,7 @@ def test_regressor(
     return metrics
 
 if __name__ == "__main__":
-    '''print("LSTM REGRESSOR:")
+    print("LSTM REGRESSOR:")
     test_regressor(
         start_date="2022-03-01",
         end_date="2022-04-05",
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     )
     print()
     print()
-    print("=====================================================")
+    '''print("=====================================================")
     print()
     print("AUTO REGRESSOR")
     test_regressor(
