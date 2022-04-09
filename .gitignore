@@ -7,4 +7,3 @@ saved_models
 scalers
 train_data_cache
 target
-regressor_cache
