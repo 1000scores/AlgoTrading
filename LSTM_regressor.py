@@ -68,9 +68,12 @@ class LSTM_regressor:
         self.currency_symbol = currency_symbol
         self.ohlcv_size = ohlcv_size
         self.device = device
-
+        self.columns = columns
+        
         self.train_dataloaders = {}
         self.test_dataloaders = {}
+        
+        self.models = dict()
 
         for col in columns:
             tmp_train_dataset = AlgoTradingDataset(
@@ -103,27 +106,32 @@ class LSTM_regressor:
                 shuffle=False
             )
         
-        for col in columns:
+    def fit(self):
+        val_scores = []
+        for col in self.columns:
             self.train(col)
+            val_scores.append(self.test(col))
+        
+        return np.array(val_scores).mean()
 
     def get_model_path(self, col):
         return f"saved_models/{self.currency_symbol}/{self.ohlcv_size}/{col}/{self.model_name}.pth"
     
-    def save_trained_model(self, model, col):
-        if not os.path.isdir(f"saved_models"):
-            os.mkdir(f"saved_models")
+    def save_trained_model(self, col):
+        if not os.path.isdir(f"lstm_models"):
+            os.mkdir(f"lstm_models")
             
-        if not os.path.isdir(f"saved_models/{self.currency_symbol}"):
-            os.mkdir(f"saved_models/{self.currency_symbol}")
+        if not os.path.isdir(f"lstm_models/{self.currency_symbol}"):
+            os.mkdir(f"lstm_models/{self.currency_symbol}")
         
-        if not os.path.isdir(f"saved_models/{self.currency_symbol}/{self.ohlcv_size}"):
-            os.mkdir(f"saved_models/{self.currency_symbol}/{self.ohlcv_size}")
+        if not os.path.isdir(f"lstm_models/{self.currency_symbol}/{self.ohlcv_size}"):
+            os.mkdir(f"lstm_models/{self.currency_symbol}/{self.ohlcv_size}")
             
-        if not os.path.isdir(f"saved_models/{self.currency_symbol}/{self.ohlcv_size}/{col}"):
-            os.mkdir(f"saved_models/{self.currency_symbol}/{self.ohlcv_size}/{col}")
+        if not os.path.isdir(f"lstm_models/{self.currency_symbol}/{self.ohlcv_size}/{col}"):
+            os.mkdir(f"lstm_models/{self.currency_symbol}/{self.ohlcv_size}/{col}")
         
         print(f"Saving model to {self.get_model_path(col)}")
-        torch.save(model, self.get_model_path(col))
+        torch.save(self.models[col], self.get_model_path(col))
         
         
     def plot_loss(self, loss_log, col):
@@ -145,7 +153,7 @@ class LSTM_regressor:
         log_loss_every=500,
     ):
 
-        model = RegressorClass(
+        self.models[col] = RegressorClass(
             input_size=1,
             hidden_size=self.hidden_size,
             num_layers=1,
@@ -153,20 +161,20 @@ class LSTM_regressor:
             device=self.device
         )
         
-        model = model.to(self.device)
+        self.models[col] = self.models[col].to(self.device)
         
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(self.models[col].parameters(), lr=0.001)
         criterion = nn.MSELoss()
         running_loss = 0.0
         loss_log = []
         for epoch in tqdm(range(self.epochs)):
-            model.train()
+            self.models[col].train()
             for i, data in enumerate(self.train_dataloaders[col]):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
                 inputs = inputs.to(device)
                 labels = labels.to(device)
-                outputs = model(inputs)
+                outputs = self.models[col](inputs)
             
                 loss = criterion(outputs, labels)
                 optimizer.zero_grad()
@@ -179,22 +187,20 @@ class LSTM_regressor:
                     print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / float(log_loss_every):.6f}')
                     running_loss = 0.0
             
-            self.test(model, col)
+            self.test(self.models[col], col)
 
         print('Finished Training')
         
         self.plot_loss(loss_log, col)
 
-        self.save_trained_model(model, col)
+        self.save_trained_model(col)
 
     
-    def test(self, model, col):
-        
-        num_batches = len(self.test_dataloaders[col])
+    def test(self, col):
         
         criterion = nn.MSELoss()
         total_loss = 0
-        model.eval()
+        self.models[col].eval()
         
         with torch.no_grad():
             for i, data in enumerate(self.test_dataloaders[col]):
@@ -202,10 +208,10 @@ class LSTM_regressor:
                 inputs, labels = data
                 inputs = inputs.to(device)
                 labels = labels.to(device)
-                outputs = model(inputs)
+                outputs = self.models[col](inputs)
                 total_loss += criterion(outputs, labels).item()
         
-        avg_loss = total_loss / num_batches
+        avg_loss = total_loss / float(len(self.test_dataloaders[col]))
         print(f"Test loss: {avg_loss}")
         
         return avg_loss
@@ -231,21 +237,44 @@ class TrainedLSTMRegressor:
 
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    reg = LSTM_regressor (
-        train_start_date="2020-01-01",
-        train_end_date="2021-10-01",
-        test_start_date="2021-10-02",
-        test_end_date="2022-04-01",
-        currency_symbol="BTCUSDT",
-        ohlcv_size="15m",
-        seq_len=50,
-        columns=["low", "high"],
-        batch_size=16,
-        hidden_size=15,
-        dropout_rate=0,
-        epochs=70,
-        model_name="v2",
-        device=device
-    )
-
     
+    columns = ["low", "high"]
+    seq_lens = [25, 50, 75]
+    batch_sizes = [8, 16]
+    hidden_sizes = [5, 15, 25]
+    
+    best_loss = 1e9
+    
+    best_hyper = None
+    
+    for seq_len in seq_lens:
+        for batch_size in batch_sizes:
+            for hidden_size in hidden_sizes:
+                reg = LSTM_regressor (
+                    train_start_date="2020-01-01",
+                    train_end_date="2021-12-31",
+                    test_start_date="2022-01-01",
+                    test_end_date="2022-04-08",
+                    currency_symbol="BTCUSDT",
+                    ohlcv_size="1h",
+                    seq_len=seq_len,
+                    columns=["low", "high"],
+                    batch_size=batch_size,
+                    hidden_size=hidden_size,
+                    dropout_rate=0,
+                    epochs=70,
+                    model_name="v2",
+                    device=device
+                )
+                
+                val = reg.fit()
+
+                if val < best_loss:
+                    best_loss = val
+                    best_hyper = {
+                        "seq_len" : seq_len,
+                        "batch_size" : batch_size,
+                        "hidden_size" : hidden_size
+                    }
+    print(best_loss)
+    print(best_hyper)
