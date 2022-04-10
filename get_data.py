@@ -106,8 +106,8 @@ def get_data(
     })
     df_input = df_input.drop_duplicates(subset="opentime")
     df_input = df_input.sort_values(by=["opentime"])
-    print(df_input)
-    print("============================")
+    # print(df_input)
+    # print("============================")
     minute_in_milli = 60000
     first_opentime = int(df_input.iloc[0]["opentime"])
     last_opentime = int(df_input.iloc[-1]["opentime"])
@@ -122,13 +122,13 @@ def get_data(
         else:
             last_line = cur_row
     
-    print(lines_for_append)
+    # print(lines_for_append)
     
     for line in lines_for_append:
         df_input = df_input.append(line, ignore_index=True)
     
     df_input = df_input.sort_values(by=["opentime"]).reset_index(drop=True)
-    print(df_input)
+    # print(df_input)
 
 
     df_res = pd.DataFrame([], columns=df_input.columns)
