@@ -170,7 +170,7 @@ def get_low_from_data(path):
 
 if __name__ == "__main__":
     print("here")
-    df_mine = get_data("2019-01-01", "2022-04-08", "BTCUSDT", "1h")
+    df_mine = get_data("2019-01-02", "2022-04-08", "BTCUSDT", "1h")
     #df_true = download_data_df("2022-03-03", "2022-03-04", "ETHUSDT", "1h")
     #pprint(df_mine)
     #print()

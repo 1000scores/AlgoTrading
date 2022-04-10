@@ -66,16 +66,16 @@ def test_regressor(
 if __name__ == "__main__":
     print("LSTM REGRESSOR:")
     test_regressor(
-        start_date="2022-03-01",
-        end_date="2022-04-05",
+        start_date="2022-01-01",
+        end_date="2022-04-08",
         currency_symbol="BTCUSDT",
-        ohlcv_size="15m",
+        ohlcv_size="1h",
         testing_columns=["low", "high"],
-        regressor_lag=20,
+        regressor_lag=50,
         obj_f_regressor=TrainedLSTMRegressor(
-            model_name="v2",
+            model_name="v5",
             currency_symbol="BTCUSDT",
-            ohlcv_size="15m",
+            ohlcv_size="1h",
             columns=["low", "high"],
             device=torch.device("cuda")
         ),
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     )
     print()
     print()
-    '''print("=====================================================")
+    print("=====================================================")
     print()
     print("AUTO REGRESSOR")
     test_regressor(
@@ -95,8 +95,12 @@ if __name__ == "__main__":
         regressor_lag=1000,
         obj_f_regressor=AUTO_regressor(
             currency_symbol="BTCUSDT",
+            ohlcv_size="1h",
+            columns=["low", "high"],
+            regressor_train_size=1000,
+            version="baseline_seqlen_20",
             seq_len=10,
             regressor=CatBoostRegressor(random_state=123, silent=True)
         ),
         silent=False
-    )'''
+    )

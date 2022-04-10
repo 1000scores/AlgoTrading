@@ -100,6 +100,8 @@ class LSTM_regressor:
                 shuffle=False
             )
             
+           
+            
             self.test_dataloaders[col] = DataLoader(
                 tmp_test_dataset,
                 batch_size=self.batch_size,
@@ -115,7 +117,7 @@ class LSTM_regressor:
         return np.array(val_scores).mean()
 
     def get_model_path(self, col):
-        return f"saved_models/{self.currency_symbol}/{self.ohlcv_size}/{col}/{self.model_name}.pth"
+        return f"lstm_models/{self.currency_symbol}/{self.ohlcv_size}/{col}/{self.model_name}.pth"
     
     def save_trained_model(self, col):
         if not os.path.isdir(f"lstm_models"):
@@ -169,8 +171,10 @@ class LSTM_regressor:
         loss_log = []
         for epoch in tqdm(range(self.epochs)):
             self.models[col].train()
+            # print(f"Data loader len {len(self.train_dataloaders[col])}")
             for i, data in enumerate(self.train_dataloaders[col]):
                 # get the inputs; data is a list of [inputs, labels]
+                #print(i)
                 inputs, labels = data
                 inputs = inputs.to(device)
                 labels = labels.to(device)
@@ -187,7 +191,7 @@ class LSTM_regressor:
                     print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / float(log_loss_every):.6f}')
                     running_loss = 0.0
             
-            self.test(self.models[col], col)
+            self.test(col)
 
         print('Finished Training')
         
@@ -223,7 +227,7 @@ class TrainedLSTMRegressor:
         self.currency_symbol = currency_symbol
         self.device = device
         for col in columns:
-            self.models[col] = torch.load(f"saved_models/{currency_symbol}/{ohlcv_size}/{col}/{model_name}.pth")
+            self.models[col] = torch.load(f"lstm_models/{currency_symbol}/{ohlcv_size}/{col}/{model_name}.pth")
             self.models[col].eval()
         
     def predict(self, inputs, column, opentime=None):
@@ -238,9 +242,9 @@ class TrainedLSTMRegressor:
 if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-    columns = ["low", "high"]
+    '''columns = ["low", "high"]
     seq_lens = [25, 50, 75]
-    batch_sizes = [8, 16]
+    batch_sizes = [8]
     hidden_sizes = [5, 15, 25]
     
     best_loss = 1e9
@@ -251,7 +255,7 @@ if __name__ == '__main__':
         for batch_size in batch_sizes:
             for hidden_size in hidden_sizes:
                 reg = LSTM_regressor (
-                    train_start_date="2020-01-01",
+                    train_start_date="2021-01-01",
                     train_end_date="2021-12-31",
                     test_start_date="2022-01-01",
                     test_end_date="2022-04-08",
@@ -263,7 +267,7 @@ if __name__ == '__main__':
                     hidden_size=hidden_size,
                     dropout_rate=0,
                     epochs=70,
-                    model_name="v2",
+                    model_name="v3",
                     device=device
                 )
                 
@@ -277,4 +281,24 @@ if __name__ == '__main__':
                         "hidden_size" : hidden_size
                     }
     print(best_loss)
-    print(best_hyper)
+    print(best_hyper)'''
+    
+    reg = LSTM_regressor (
+        train_start_date="2021-01-01",
+        train_end_date="2021-12-31",
+        test_start_date="2022-01-01",
+        test_end_date="2022-04-08",
+        currency_symbol="BTCUSDT",
+        ohlcv_size="1h",
+        seq_len=50,
+        columns=["low", "high"],
+        batch_size=8,
+        hidden_size=5,
+        dropout_rate=0,
+        epochs=70,
+        model_name="v5",
+        device=device
+    )
+    
+    reg.fit()
+    
