@@ -36,10 +36,11 @@ def test_regressor(
     for i in tqdm(range(regressor_lag, len(df_test))):
         for col in testing_columns:
             real[col].append(df_test.iloc[i][col])
-            pred[col].append(obj_f_regressor.predict(
+            pred[col].append(pd.Series(obj_f_regressor.predict(
                 inputs=df_test.iloc[i - regressor_lag : i],
                 column=col,
-            ).item())
+                opentime=df_test.iloc[i]["opentime"]
+            )).item())
             
         if not silent and i % log_every == 0:
             print(f"mse=>>>>{mean_squared_error(real[col], pred[col])}")
@@ -64,7 +65,7 @@ def test_regressor(
     return metrics
 
 if __name__ == "__main__":
-    print("LSTM REGRESSOR:")
+    '''print("LSTM REGRESSOR:")
     test_regressor(
         start_date="2022-01-01",
         end_date="2022-04-08",
@@ -82,8 +83,8 @@ if __name__ == "__main__":
         silent=True
     )
     print()
-    print()
-    print("=====================================================")
+    print()'''
+    '''print("=====================================================")
     print()
     print("AUTO REGRESSOR")
     test_regressor(
@@ -102,5 +103,72 @@ if __name__ == "__main__":
             seq_len=10,
             regressor=CatBoostRegressor(random_state=123, silent=True)
         ),
-        silent=False
+        silent=True
+    )
+    
+    print("=====================================================")
+    print()
+    print("AUTO REGRESSOR CATBOOST TUNED")
+    test_regressor(
+        start_date="2022-01-01",
+        end_date="2022-04-05",
+        currency_symbol="BTCUSDT",
+        ohlcv_size="1h",
+        testing_columns=["low", "high"],
+        regressor_lag=1000,
+        obj_f_regressor=AUTO_regressor(
+            currency_symbol="BTCUSDT",
+            ohlcv_size="1h",
+            columns=["low", "high"],
+            regressor_train_size=1000,
+            version="baseline_seqlen_6",
+            seq_len=6,
+            regressor=CatBoostRegressor(max_depth=6, n_estimators=500, random_state=123, silent=True)
+        ),
+        silent=True
+    )'''
+    
+    print("=====================================================")
+    print()
+    print("AUTO REGRESSOR XGBOOOST TUNED")
+    test_regressor(
+        start_date="2022-01-01",
+        end_date="2022-04-05",
+        currency_symbol="BTCUSDT",
+        ohlcv_size="1h",
+        testing_columns=["low", "high"],
+        regressor_lag=1000,
+        obj_f_regressor=AUTO_regressor(
+            currency_symbol="BTCUSDT",
+            ohlcv_size="1h",
+            columns=["low", "high"],
+            regressor_train_size=1000,
+            version="xgboost_seqlen_6",
+            seq_len=6,
+            regressor=XGBRegressor(max_depth=6, n_estimators=100, random_state=123)
+        ),
+        silent=True
+    )
+    
+    print()
+    print("=====================================================")
+    print()
+    print("AUTO REGRESSOR LIGHTGBM TUNED")
+    test_regressor(
+        start_date="2022-01-01",
+        end_date="2022-04-05",
+        currency_symbol="BTCUSDT",
+        ohlcv_size="1h",
+        testing_columns=["low", "high"],
+        regressor_lag=1000,
+        obj_f_regressor=AUTO_regressor(
+            currency_symbol="BTCUSDT",
+            ohlcv_size="1h",
+            columns=["low", "high"],
+            regressor_train_size=1000,
+            version="lightgbm_seqlen_6",
+            seq_len=6,
+            regressor=LGBMRegressor(max_depth=4, n_estimators=100, random_state=123)
+        ),
+        silent=True
     )

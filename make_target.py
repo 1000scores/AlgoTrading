@@ -6,13 +6,13 @@ from tqdm import tqdm
 def make_target(
     start_date: str,
     end_date: str,
+    tickers: list,
     file_name: str
 ):
     if not os.path.isdir(f"target"):
         os.mkdir(f"target")
         
-    tickers = ["ETHUSDT"] #, "ETHUSDT", "NEARUSDT", "BNBUSDT"]
-    targets_ohlcv_sizes = ["1h", "12h"]
+    targets_ohlcv_sizes = ["1h", "12h", "1d"]
     regressor_features_ohlcv_sizes = ["1h", "12h", "1d"]
     regressor_features_columns = ["high", "low"]
     
@@ -78,7 +78,7 @@ def make_target(
                     # Adding last ohlcv features
                     for last_ohlcv_col in last_ohlcv_columns_to_feature:
                         cur_fname = f"last_ohlcv_{last_ohlcv_col}_{cur_ohlcv_size}"
-                        tmp_dict[cur_fname] = df_helper[df_helper.opentime <= int(cur_opentime)].iloc[-1][last_ohlcv_col]
+                        tmp_dict[cur_fname] = df_helper[df_helper.closetime < int(cur_opentime)].iloc[-1][last_ohlcv_col]
                 
                 res_df = res_df.append(pd.DataFrame(tmp_dict, index=[i-1]))
 
@@ -90,11 +90,13 @@ if __name__ == "__main__":
     make_target(
         "2021-01-01",
         "2021-12-31",
+        ["BTCUSDT"],
         "train"
     )
     
     make_target(
         "2022-01-01",
         "2022-04-08",
+        ["BTCUSDT"],
         "test"
     )

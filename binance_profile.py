@@ -5,10 +5,8 @@ class Profile():
     
     def __init__(
         self,
-        base_asset="USDT",
     ):
         self.client = Account()
-        self.base_asset = base_asset
         
         
     def get_balance(self, asset):

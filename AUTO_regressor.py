@@ -100,7 +100,6 @@ class AUTO_regressor:
         if str(opentime) in self.cache[column]:
             #print("here")
             return self.cache[column][str(opentime)]
-        
         '''print()
         print(f"path = {f'{self.cache_prefix}/{column}/{self.version}.json'}")
         print(f"opentime = {opentime}")

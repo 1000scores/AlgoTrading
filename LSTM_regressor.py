@@ -235,7 +235,7 @@ class TrainedLSTMRegressor:
             cur_model = self.models[column]
             cur_inputs = torch.Tensor(transform(np.array(inputs[column]).reshape((-1, 1)), self.currency_symbol)).to(self.device)
             cur_inputs = cur_inputs.reshape((1, -1, 1))
-            return inverse_transform(cur_model(cur_inputs).cpu().reshape(-1, 1), self.currency_symbol)
+            return inverse_transform(cur_model(cur_inputs).cpu().reshape(-1, 1), self.currency_symbol).item()
 
 
 
