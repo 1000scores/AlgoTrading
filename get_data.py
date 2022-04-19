@@ -159,6 +159,91 @@ def get_data(
     return pd.read_csv(fname)
 
 
+def online_get_latest_data(
+    num_of_ohlcv: int,
+    ohlcv_size: str,
+    ticker: str
+):
+    get_latest = None
+    with open("sql/get_last_OHLCV.sql", 'r') as f:
+        get_latest = f.read()
+
+    ohlcv_minutes = int(get_ohlcv_to_minutes()[ohlcv_size])
+    
+    get_latest = get_latest.replace("TICKER", ticker)
+    get_latest = get_latest.replace("N_OHLCV", str(ohlcv_minutes * num_of_ohlcv))
+
+    connection, _ = get_connection_and_tickers_to_database()
+
+    df_input = pd.read_sql_query(get_latest, connection)
+
+    df_input = df_input.drop('index', axis=1)
+    df_input = df_input.astype({
+        'opentime': 'int64',
+        'open': 'float',
+        'high': 'float',
+        'low': 'float',
+        'close': 'float',
+        'volume': 'float',
+        'closetime': 'int64',
+        'quote_asset_volume': 'float',
+        'num_of_trades': 'int64',
+        'taker_by_base': 'float',
+        'taker_buy_quote': 'float',
+        'ignore': 'int64'
+    })
+    df_input = df_input.drop_duplicates(subset="opentime")
+    df_input = df_input.sort_values(by=["opentime"])
+
+    minute_in_milli = 60000
+    first_opentime = int(df_input.iloc[0]["opentime"])
+    last_opentime = int(df_input.iloc[-1]["opentime"])
+    lines_for_append = []
+    last_line = None
+    for cur_opentime in tqdm(range(first_opentime, last_opentime + minute_in_milli, minute_in_milli)):
+        cur_row = df_input[df_input.opentime == cur_opentime]
+        if len(cur_row) == 0:
+            tmp = last_line.copy()
+            tmp["opentime"] = cur_opentime
+            lines_for_append.append(tmp)
+        else:
+            last_line = cur_row
+    
+    # print(lines_for_append)
+    
+    for line in lines_for_append:
+        df_input = df_input.append(line, ignore_index=True)
+    
+    df_input = df_input.sort_values(by=["opentime"]).reset_index(drop=True)
+    # print(df_input)
+
+
+    df_res = pd.DataFrame([], columns=df_input.columns)
+
+    print("Preparing data from database")
+    for i in tqdm(range(0, len(df_input), ohlcv_minutes)):
+        cur_ohlcv_df = df_input.iloc[i : i + ohlcv_minutes]
+        
+        cur_res_df = pd.DataFrame({
+            'opentime': cur_ohlcv_df['opentime'].min(),
+            'open': cur_ohlcv_df['open'].iloc[0],
+            'high': cur_ohlcv_df['high'].max(),
+            'low': cur_ohlcv_df['low'].min(),
+            'close': cur_ohlcv_df['close'].iloc[len(cur_ohlcv_df['close']) - 1],
+            'volume': cur_ohlcv_df['volume'].sum(),
+            'closetime': cur_ohlcv_df['closetime'].max(),
+            'quote_asset_volume': cur_ohlcv_df['quote_asset_volume'].sum(),
+            'num_of_trades': cur_ohlcv_df['num_of_trades'].sum(),
+            'taker_by_base': cur_ohlcv_df['taker_by_base'].sum(),
+            'taker_buy_quote': cur_ohlcv_df['taker_buy_quote'].sum(),
+            'ignore': cur_ohlcv_df['ignore'].min()  # =))
+        }, index=[i // ohlcv_minutes])
+
+        df_res = df_res.append(cur_res_df)
+        
+    return df_res
+    
+
 def get_high_from_data(path):
     with open(path, 'r') as f:
         return np.array([float(elem[2]) for elem in json.load(f)])
