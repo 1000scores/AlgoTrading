@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from binance_profile import Profile
 from get_data import *
 from AUTO_regressor import *
-
+from pprint import pprint
 
 class OnlineModel:
 
@@ -51,20 +51,29 @@ class OnlineModel:
     def decision(self):
         
         tmp_dict = dict()
+        whole_df = online_get_data_df(self.ticker)
         for cur_ohlcv_size in self.regressor_features_ohlcv_sizes:
+            cur_latest_data = online_get_data_from_df(whole_df, self.regressor_train_size, cur_ohlcv_size)
             for cur_col in self.regressor_features_columns:
                 cur_fname = f"regressor_{cur_col}_{cur_ohlcv_size}"
                 tmp_dict[cur_fname] = self.auto_regressor.predict(
-                    inputs=online_get_latest_data(self.regressor_train_size, cur_ohlcv_size, self.ticker),
+                    inputs=cur_latest_data,
                     column=cur_col
                 )
                 
             # Adding last ohlcv features
             for last_ohlcv_col in self.last_ohlcv_columns_to_feature:
                 cur_fname = f"last_ohlcv_{last_ohlcv_col}_{cur_ohlcv_size}"
-                tmp_dict[cur_fname] = online_get_latest_data(1, cur_ohlcv_size, self.ticker)
-            
-        score = self.prediction_model.predict(pd.DataFrame(tmp_dict, index=[0]).iloc[0])[0]
+                #print(cur_fname)
+                tmp_dict[cur_fname] = cur_latest_data.iloc[-1][last_ohlcv_col]
+        print()
+        print()
+        pprint(tmp_dict)
+        print()
+        print()
+        pprint(pd.Series(tmp_dict))
+        print()
+        score = self.prediction_model.predict([tmp_dict], prediction_type="Probability")[0]
 
         return admit_model(score)
 

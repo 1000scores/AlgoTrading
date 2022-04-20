@@ -1,3 +1,4 @@
 SELECT
     *
-FROM TICKER;
+FROM TICKER
+order by opentime;

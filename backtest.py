@@ -65,7 +65,7 @@ def test_regressor(
     return metrics
 
 if __name__ == "__main__":
-    '''print("LSTM REGRESSOR:")
+    print("LSTM REGRESSOR:")
     test_regressor(
         start_date="2022-01-01",
         end_date="2022-04-08",
@@ -83,8 +83,9 @@ if __name__ == "__main__":
         silent=True
     )
     print()
-    print()'''
-    '''print("=====================================================")
+    print()
+    '''
+    print("=====================================================")
     print()
     print("AUTO REGRESSOR")
     test_regressor(
@@ -126,7 +127,7 @@ if __name__ == "__main__":
             regressor=CatBoostRegressor(max_depth=6, n_estimators=500, random_state=123, silent=True)
         ),
         silent=True
-    )'''
+    )
     
     print("=====================================================")
     print()
@@ -171,4 +172,4 @@ if __name__ == "__main__":
             regressor=LGBMRegressor(max_depth=4, n_estimators=100, random_state=123)
         ),
         silent=True
-    )
+    )'''

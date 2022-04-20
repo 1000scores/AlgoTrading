@@ -90,13 +90,13 @@ if __name__ == "__main__":
     make_target(
         "2021-01-01",
         "2021-12-31",
-        ["BTCUSDT"],
+        ["ETHUSDT"],
         "train"
     )
     
     make_target(
         "2022-01-01",
         "2022-04-08",
-        ["BTCUSDT"],
+        ["ETHUSDT"],
         "test"
     )

@@ -71,20 +71,6 @@ class AUTO_regressor:
     
     
     def predict_by_opentime(self, df, column, opentime: int):
-        # print()
-        # print(df[df.opentime >= opentime].head())
-        # print()
-        # print(str(int(opentime)))
-        '''print(df.info())
-        print()
-        print(opentime)
-        print()
-        print(df.head(3))
-        print()
-        print(df.iloc[2307:])
-        print()
-        print(column)
-        print()'''
         last_dfs = (df.opentime <= int(opentime))
         last_opentime = df[last_dfs].iloc[-1]["opentime"]
         index_predict = df.index[last_dfs].tolist()[-1]
@@ -96,16 +82,12 @@ class AUTO_regressor:
     
     
     def predict(self, inputs, column, opentime=None):
-        # assert len(inputs) == self.regressor_train_size
+        print(str(opentime))
+        print()
+        print()
         if str(opentime) in self.cache[column]:
-            #print("here")
             return self.cache[column][str(opentime)]
-        '''print()
-        print(f"path = {f'{self.cache_prefix}/{column}/{self.version}.json'}")
-        print(f"opentime = {opentime}")
-        print(f"column = {column}")
-        #print(self.cache[column])
-        print()'''
+
         self.forecaster.fit(y=pd.Series(inputs[column]))
         return self.forecaster.predict(steps=1)
 

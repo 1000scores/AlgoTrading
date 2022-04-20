@@ -1,3 +1,11 @@
+from sqlalchemy import create_engine
+import json
+import pandas as pd
+from account import Account
+from common import date_to_milli, get_connection_and_tickers_to_database
+from tqdm import tqdm
+from get_data import download_data_df
+
 
 def fix_database(connection, ticker):
 
@@ -32,21 +40,39 @@ def fix_database(connection, ticker):
     last_opentime = int(df_input.iloc[-1]["opentime"])
     lines_for_append = []
     last_line = None
-    for cur_opentime in tqdm(range(first_opentime, last_opentime + minute_in_milli, minute_in_milli)):
+
+    cache_data = None
+    cache_path = f"fix_cache/fix_{ticker}_cache.json"
+
+    if not os.path.isdir("fix_cache"):
+        os.mkdir("fix_cache")
+
+    if os.path.isfile(cache_path):
+        with open(cache_path, "rb") as f:
+            cache_data = json.load(f)
+    else:
+        cache_data = {"last_opentime_fix" : first_opentime}
+
+    for cur_opentime in tqdm(range(cache_data["last_opentime_fix"], last_opentime + minute_in_milli, minute_in_milli)):
         cur_row = df_input[df_input.opentime == cur_opentime]
         if len(cur_row) == 0:
             tmp = last_line.copy()
             tmp["opentime"] = cur_opentime
-            lines_for_append.append(tmp)
+            tmp["closetime"] = cur_opentime + minute_in_milli - 1
+            tmp_df = pd.DataFrame(tmp, columns=df_input.columns)
+            tmp_df.to_sql(ticker, connection, if_exists="append")
+            print(f"appended = {cur_opentime}")
         else:
             last_line = cur_row
-    
-    for line in lines_for_append:
-        df_input = df_input.append(line, ignore_index=True)
-    
-    df_input = df_input.sort_values(by=["opentime"]).reset_index(drop=True)
+        
+        cache_data["last_opentime_fix"] = cur_opentime
 
-    df_input.to_sql(ticker, connection, if_exists="replace")
+    with open(cache_path, "wb") as f:
+        json.dump(cache_path, f)
+
 
 if __name__ == "__main__":
     connection, tickers = get_connection_and_tickers_to_database()
+
+    for ticker in tickers:
+        fix_database(connection, ticker)

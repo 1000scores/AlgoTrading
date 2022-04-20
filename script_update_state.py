@@ -36,7 +36,8 @@ def update_data(connection, last_closetime, ticker):
     )
     
     result_df.to_sql(ticker, connection, if_exists="append")
-    
+
+
 
 if __name__ == "__main__":
     connection, tickers = get_connection_and_tickers_to_database()

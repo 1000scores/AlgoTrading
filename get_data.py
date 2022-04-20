@@ -104,7 +104,7 @@ def get_data(
         'taker_buy_quote': 'float',
         'ignore': 'int64'
     })
-    df_input = df_input.drop_duplicates(subset="opentime")
+    '''df_input = df_input.drop_duplicates(subset="opentime")
     df_input = df_input.sort_values(by=["opentime"])
     # print(df_input)
     # print("============================")
@@ -129,6 +129,7 @@ def get_data(
     
     df_input = df_input.sort_values(by=["opentime"]).reset_index(drop=True)
     # print(df_input)
+    '''
 
 
     df_res = pd.DataFrame([], columns=df_input.columns)
@@ -158,25 +159,24 @@ def get_data(
     df_res.to_csv(fname)
     return pd.read_csv(fname)
 
-
-def online_get_latest_data(
-    num_of_ohlcv: int,
-    ohlcv_size: str,
-    ticker: str
+def online_get_data_df(
+    currency_symbol: str,
 ):
-    get_latest = None
-    with open("sql/get_last_OHLCV.sql", 'r') as f:
-        get_latest = f.read()
-
-    ohlcv_minutes = int(get_ohlcv_to_minutes()[ohlcv_size])
+    start_date = "2019-01-01"
+    online_data_query = None
+    with open("sql/online_data.sql", 'r') as f:
+        online_data_query = f.read()
     
-    get_latest = get_latest.replace("TICKER", ticker)
-    get_latest = get_latest.replace("N_OHLCV", str(ohlcv_minutes * num_of_ohlcv))
+
+    online_data_query = online_data_query.replace("TICKER", currency_symbol)
+    online_data_query = online_data_query.replace("START_MILLI", str(date_to_milli(start_date)))
 
     connection, _ = get_connection_and_tickers_to_database()
 
-    df_input = pd.read_sql_query(get_latest, connection)
-
+    df_input = pd.read_sql_query(online_data_query, connection)
+    #ohlcv_minutes = int(get_ohlcv_to_minutes()[ohlcv_size])
+    #need_size = int((len(df_input) / ohlcv_minutes) * ohlcv_minutes)
+    #df_input = df_input.iloc[:need_size]
     df_input = df_input.drop('index', axis=1)
     df_input = df_input.astype({
         'opentime': 'int64',
@@ -192,32 +192,19 @@ def online_get_latest_data(
         'taker_buy_quote': 'float',
         'ignore': 'int64'
     })
-    df_input = df_input.drop_duplicates(subset="opentime")
-    df_input = df_input.sort_values(by=["opentime"])
 
-    minute_in_milli = 60000
-    first_opentime = int(df_input.iloc[0]["opentime"])
-    last_opentime = int(df_input.iloc[-1]["opentime"])
-    lines_for_append = []
-    last_line = None
-    for cur_opentime in tqdm(range(first_opentime, last_opentime + minute_in_milli, minute_in_milli)):
-        cur_row = df_input[df_input.opentime == cur_opentime]
-        if len(cur_row) == 0:
-            tmp = last_line.copy()
-            tmp["opentime"] = cur_opentime
-            lines_for_append.append(tmp)
-        else:
-            last_line = cur_row
-    
-    # print(lines_for_append)
-    
-    for line in lines_for_append:
-        df_input = df_input.append(line, ignore_index=True)
-    
-    df_input = df_input.sort_values(by=["opentime"]).reset_index(drop=True)
-    # print(df_input)
+    return df_input
 
-
+    
+def online_get_data_from_df(
+    df_whole,
+    num_of_ohlcv: int,
+    ohlcv_size: str,  # num of minutes in OHLCV
+):
+    ohlcv_minutes = int(get_ohlcv_to_minutes()[ohlcv_size])
+    need_size = int((len(df_whole) / ohlcv_minutes) * ohlcv_minutes)
+    df_input = df_whole.iloc[:need_size]
+    
     df_res = pd.DataFrame([], columns=df_input.columns)
 
     print("Preparing data from database")
@@ -240,7 +227,8 @@ def online_get_latest_data(
         }, index=[i // ohlcv_minutes])
 
         df_res = df_res.append(cur_res_df)
-        
+    df_res = df_res.iloc[:-num_of_ohlcv]
+    df_res = df_res.reset_index()
     return df_res
     
 
